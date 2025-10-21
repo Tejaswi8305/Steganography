@@ -1,0 +1,130 @@
+* {
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+body {
+  font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  background: linear-gradient(135deg, #dfe9f3, #ffffff);
+  color: #222;
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+h2, h3 {
+  color: #0f4c75;
+  text-align: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  margin-top: 18px;
+  font-weight: 500;
+  color: #333;
+}
+
+input[type="file"],
+input[type="text"],
+input[type="password"],
+textarea,
+input[placeholder] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 6px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #3282b8;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(50, 130, 184, 0.3);
+}
+
+button {
+  background: #3282b8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+button:hover {
+  background: #0f4c75;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+a#downloadLink {
+  background: #00b894;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a#downloadLink:hover {
+  background: #00916e;
+}
+
+/* ===== Row Layouts ===== */
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.small {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* ===== Log Section ===== */
+#log {
+  background: rgba(240, 248, 255, 0.8);
+  border: 1px solid #bbe1fa;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 20px;
+  font-family: 'Consolas', monospace;
+  white-space: pre-wrap;
+  color: #1b262c;
+}
+
+/* ===== Horizontal Rule ===== */
+hr {
+  margin: 30px 0;
+  border: none;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #3282b8, transparent);
+}
+
+/* ===== Scrollbars (for textarea & pre) ===== */
+textarea, pre {
+  scrollbar-width: thin;
+  scrollbar-color: #3282b8 #e0f7fa;
+}
+
+textarea::-webkit-scrollbar, pre::-webkit-scrollbar {
+  width: 8px;
+}
+
+textarea::-webkit-scrollbar-thumb, pre::-webkit-scrollbar-thumb {
+  background: #3282b8;
+  border-radius: 6px;
+}

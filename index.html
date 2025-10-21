@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Image Steganography (AES-GCM + LSB)</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f3f5f7; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+    .tab {
+      background: #ddd; border: none; padding: 10px 20px;
+      cursor: pointer; font-weight: bold; border-radius: 5px;
+    }
+    .tab.active { background: #007bff; color: white; }
+    .section { display: none; }
+    .section.active { display: block; }
+    label { display: block; margin: 10px 0; }
+    textarea { width: 100%; height: 80px; }
+    input[type=file], input[type=text], input[type=password] {
+      width: 100%; padding: 8px; margin-top: 5px;
+    }
+    button { margin-top: 10px; padding: 8px 14px; }
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    #logEncrypt, #logDecrypt { margin-top: 12px; background: #fff; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Encrypt + Decrypt Image Steganography (AES-GCM)</h2>
+
+  <div class="tabs">
+    <button id="tabEncrypt" class="tab active">Encrypt</button>
+    <button id="tabDecrypt" class="tab">Decrypt</button>
+  </div>
+
+  <!-- Encrypt Section -->
+  <div id="encryptSection" class="section active">
+    <label>
+      1) Choose carrier PNG (must be big enough)
+      <input type="file" id="carrierFile" accept="image/*">
+    </label>
+
+    <label>
+      2) Message to hide
+      <textarea id="plaintext"></textarea>
+    </label>
+
+    <div class="row">
+      <button id="genKey">Generate AES-256 Key</button>
+      <button id="importKey">Import Key</button>
+      <input id="importKeyInput" placeholder="paste base64 key here" />
+    </div>
+
+    <div class="row small">
+      <div>Exported key (base64):</div>
+      <input id="exportedKey" readonly />
+    </div>
+
+    <div class="row">
+      <button id="embedBtn">Encrypt & Embed</button>
+      <a id="downloadLink" style="display:none">Download stego.png</a>
+    </div>
+
+    <div id="logEncrypt"></div>
+  </div>
+
+  <!-- Decrypt Section -->
+  <div id="decryptSection" class="section">
+    <label>
+      1) Choose stego PNG (with hidden message)
+      <input type="file" id="stegoFile" accept="image/*">
+    </label>
+
+    <label>
+      2) Paste shared AES key (base64)
+      <input id="receiverKey" placeholder="paste base64 key" />
+    </label>
+
+    <div class="row">
+      <button id="extractBtn">Extract & Decrypt</button>
+    </div>
+
+    <div id="logDecrypt"></div>
+  </div>
+
+  <canvas id="canvas" style="display:none"></canvas>
+  <script src="crypto.js"></script>
+  <script>
+    // ====== Tab Switching ======
+    const tabEncrypt = document.getElementById("tabEncrypt");
+    const tabDecrypt = document.getElementById("tabDecrypt");
+    const encryptSection = document.getElementById("encryptSection");
+    const decryptSection = document.getElementById("decryptSection");
+
+    tabEncrypt.addEventListener("click", () => {
+      tabEncrypt.classList.add("active");
+      tabDecrypt.classList.remove("active");
+      encryptSection.classList.add("active");
+      decryptSection.classList.remove("active");
+    });
+
+    tabDecrypt.addEventListener("click", () => {
+      tabDecrypt.classList.add("active");
+      tabEncrypt.classList.remove("active");
+      decryptSection.classList.add("active");
+      encryptSection.classList.remove("active");
+    });
+
+    // ====== Shared Canvas + Logic ======
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    async function loadImage(file){
+      return new Promise((res, rej)=>{
+        const img = new Image();
+        img.onload = ()=>{canvas.width=img.width;canvas.height=img.height;ctx.drawImage(img,0,0);res();};
+        img.onerror = rej;
+        const r = new FileReader();
+        r.onload = ev => img.src = ev.target.result;
+        r.readAsDataURL(file);
+      });
+    }
+
+    // ====== Encryption Section ======
+    const carrierFile = document.getElementById("carrierFile");
+    const plaintextEl = document.getElementById("plaintext");
+    const genKeyBtn = document.getElementById("genKey");
+    const importKeyBtn = document.getElementById("importKey");
+    const importKeyInput = document.getElementById("importKeyInput");
+    const exportedKey = document.getElementById("exportedKey");
+    const embedBtn = document.getElementById("embedBtn");
+    const downloadLink = document.getElementById("downloadLink");
+    const logEncrypt = document.getElementById("logEncrypt");
+
+    let currentAESKey = null;
+
+    function logMsgEncrypt(msg){ logEncrypt.innerHTML = "<pre>"+msg+"</pre>"; }
+
+    genKeyBtn.addEventListener("click", async()=>{
+      currentAESKey = await genAesKey();
+      exportedKey.value = await exportKeyRaw(currentAESKey);
+      logMsgEncrypt("Generated AES-256 key. Copy & share securely.");
+    });
+
+    importKeyBtn.addEventListener("click", async()=>{
+      try {
+        currentAESKey = await importKeyRaw(importKeyInput.value.trim());
+        exportedKey.value = importKeyInput.value.trim();
+        logMsgEncrypt("Imported AES key successfully.");
+      } catch(e){ logMsgEncrypt("Error importing key: "+e); }
+    });
+
+    embedBtn.addEventListener("click", async()=>{
+      try {
+        if(!carrierFile.files[0]) return alert("Select carrier image first.");
+        if(!plaintextEl.value) return alert("Enter a message.");
+        if(!currentAESKey) return alert("Generate or import a key first.");
+
+        await loadImage(carrierFile.files[0]);
+        const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const plaintextBytes = new TextEncoder().encode(plaintextEl.value);
+        const encryptedBlob = await aesGcmEncrypt(currentAESKey, plaintextBytes);
+        const packed = packPayload(encryptedBlob);
+        const newImgData = embedIntoImageData(imgData, packed);
+        ctx.putImageData(newImgData, 0, 0);
+        const dataUrl = canvas.toDataURL("image/png");
+        downloadLink.href = dataUrl;
+        downloadLink.download = "stego.png";
+        downloadLink.style.display = "inline-block";
+        downloadLink.textContent = "Download stego.png";
+        logMsgEncrypt("Message embedded successfully. Download the stego image below.");
+      } catch(e){ logMsgEncrypt("Error: "+e); }
+    });
+
+    // ====== Decryption Section ======
+    const stegoFile = document.getElementById("stegoFile");
+    const receiverKey = document.getElementById("receiverKey");
+    const extractBtn = document.getElementById("extractBtn");
+    const logDecrypt = document.getElementById("logDecrypt");
+
+    function logMsgDecrypt(msg){ logDecrypt.innerHTML = "<pre>"+msg+"</pre>"; }
+
+    extractBtn.addEventListener("click", async()=>{
+      try {
+        if(!stegoFile.files[0]) return alert("Select the stego image first.");
+        if(!receiverKey.value.trim()) return alert("Paste the AES key.");
+        const key = await importKeyRaw(receiverKey.value.trim());
+        await loadImage(stegoFile.files[0]);
+        const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const allBytes = extractFromImageData(imgData);
+        const payload = unpackPayload(allBytes);
+        const decrypted = await aesGcmDecrypt(key, payload);
+        logMsgDecrypt("Recovered message:\n\n"+new TextDecoder().decode(decrypted));
+      } catch(e){ logMsgDecrypt("Error: "+e); }
+    });
+  </script>
+</body>
+</html>
